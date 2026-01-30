@@ -14,12 +14,8 @@ type CategoryStore struct {
 
 func NewCategoryStore() *CategoryStore {
 	return &CategoryStore{
-		categories: []models.Category{
-			{ID: 1, Nama: "Elektronik"},
-			{ID: 2, Nama: "Pakaian"},
-			{ID: 3, Nama: "Makanan"},
-		},
-		nextID: 4,
+		categories: []models.Category{},
+		nextID:     1,
 	}
 }
 

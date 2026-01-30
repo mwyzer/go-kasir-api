@@ -2,23 +2,28 @@ package handlers
 
 import (
 	"encoding/json"
-	"kasir-api/data"
+	"errors"
 	"kasir-api/models"
+	"kasir-api/services"
 	"net/http"
 	"strconv"
 	"strings"
 )
 
 type ProductHandler struct {
-	store *data.ProductStore
+	service *services.ProductService
 }
 
-func NewProductHandler(store *data.ProductStore) *ProductHandler {
-	return &ProductHandler{store: store}
+func NewProductHandler(service *services.ProductService) *ProductHandler {
+	return &ProductHandler{service: service}
 }
 
 func (h *ProductHandler) ListProducts(w http.ResponseWriter, r *http.Request) {
-	products := h.store.GetAll()
+	products, err := h.service.GetAll()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(products)
 }
@@ -30,20 +35,23 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	product := h.store.Create(newProduct)
+	if err := h.service.Create(&newProduct); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(product)
+	json.NewEncoder(w).Encode(newProduct)
 }
 
 func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) {
 	id, err := h.extractID(r)
 	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	
-	product, err := h.store.GetByID(id)
+	product, err := h.service.GetByID(id)
 	if err != nil {
 		http.Error(w, "Product not found", http.StatusNotFound)
 		return
@@ -56,7 +64,7 @@ func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) 
 func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	id, err := h.extractID(r)
 	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	
@@ -66,7 +74,8 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	product, err := h.store.Update(id, updatedProduct)
+	updatedProduct.ID = id
+	err = h.service.Update(&updatedProduct)
 	if err != nil {
 		http.Error(w, "Product not found", http.StatusNotFound)
 		return
@@ -74,17 +83,17 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(product)
+	json.NewEncoder(w).Encode(updatedProduct)
 }
 
 func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	id, err := h.extractID(r)
 	if err != nil {
-		http.Error(w, "Invalid product ID", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	
-	if err := h.store.Delete(id); err != nil {
+	if err := h.service.Delete(id); err != nil {
 		http.Error(w, "Product not found", http.StatusNotFound)
 		return
 	}
@@ -94,7 +103,15 @@ func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 
 func (h *ProductHandler) extractID(r *http.Request) (int, error) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/product/")
-	return strconv.Atoi(idStr)
+	idStr = strings.Trim(idStr, "/")
+	if idStr == "" {
+		return 0, errors.New("Product ID is required in URL (e.g., /api/product/100)")
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return 0, errors.New("Invalid Product ID format")
+	}
+	return id, nil
 }
 
 // Handler untuk routing /api/product
@@ -111,6 +128,14 @@ func (h *ProductHandler) HandleProducts(w http.ResponseWriter, r *http.Request) 
 
 // Handler untuk routing /api/product/{id}
 func (h *ProductHandler) HandleProductByID(w http.ResponseWriter, r *http.Request) {
+	// Jika path setelah prefix kosong (misal: /api/product/), arahkan ke HandleProducts
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/product/")
+	idStr = strings.Trim(idStr, "/")
+	if idStr == "" {
+		h.HandleProducts(w, r)
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
 		h.GetProductByID(w, r)

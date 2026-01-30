@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"kasir-api/data"
 	"kasir-api/models"
 	"net/http"
@@ -39,7 +40,7 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 func (h *CategoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request) {
 	id, err := h.extractID(r)
 	if err != nil {
-		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	
@@ -56,7 +57,7 @@ func (h *CategoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request
 func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request) {
 	id, err := h.extractID(r)
 	if err != nil {
-		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	
@@ -80,7 +81,7 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request) {
 	id, err := h.extractID(r)
 	if err != nil {
-		http.Error(w, "Invalid category ID", http.StatusBadRequest)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	
@@ -94,7 +95,15 @@ func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 
 func (h *CategoryHandler) extractID(r *http.Request) (int, error) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/api/category/")
-	return strconv.Atoi(idStr)
+	idStr = strings.Trim(idStr, "/")
+	if idStr == "" {
+		return 0, errors.New("Category ID is required in URL (e.g., /api/category/1)")
+	}
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		return 0, errors.New("Invalid Category ID format")
+	}
+	return id, nil
 }
 
 func (h *CategoryHandler) HandleCategories(w http.ResponseWriter, r *http.Request) {
@@ -109,6 +118,14 @@ func (h *CategoryHandler) HandleCategories(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *CategoryHandler) HandleCategoryByID(w http.ResponseWriter, r *http.Request) {
+	// Jika path setelah prefix kosong (misal: /api/category/), arahkan ke HandleCategories
+	idStr := strings.TrimPrefix(r.URL.Path, "/api/category/")
+	idStr = strings.Trim(idStr, "/")
+	if idStr == "" {
+		h.HandleCategories(w, r)
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
 		h.GetCategoryByID(w, r)

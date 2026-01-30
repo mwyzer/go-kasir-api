@@ -5,6 +5,8 @@ import (
 	"kasir-api/data"
 	"kasir-api/database"
 	"kasir-api/handlers"
+	"kasir-api/repositories"
+	"kasir-api/services"
 	"log"
 	"net/http"
 	"strings"
@@ -41,11 +43,17 @@ func main() {
 
 
 	// Initialize stores
-	productStore := data.NewProductStore()
+	// productStore := data.NewProductStore() // No longer used for products
 	categoryStore := data.NewCategoryStore()
 	
+	// Initialize repositories
+	productRepo := repositories.NewProductRepository(db)
+	
+	// Initialize services
+	productService := services.NewProductService(productRepo)
+	
 	// Initialize handlers
-	productHandler := handlers.NewProductHandler(productStore)
+	productHandler := handlers.NewProductHandler(productService)
 	categoryHandler := handlers.NewCategoryHandler(categoryStore)
 	
 	// Setup routes
