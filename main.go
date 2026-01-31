@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"kasir-api/data"
 	"kasir-api/database"
 	"kasir-api/handlers"
 	"kasir-api/repositories"
@@ -30,8 +29,16 @@ func main() {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	//config port
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = viper.GetString("PORT")
+	}
+	if port == "" {
+		port = "8080"
+	}
+
 	config := Config{
-		Port:   viper.GetString("PORT"),
+		Port:   port,
 		DBConn: viper.GetString("DB_CONN"),
 	}
 
@@ -49,17 +56,18 @@ func main() {
 
 	// Initialize stores
 	// productStore := data.NewProductStore() // No longer used for products
-	categoryStore := data.NewCategoryStore()
+	// categoryStore := data.NewCategoryStore()
 	
 	// Initialize repositories
 	productRepo := repositories.NewProductRepository(db)
+	categoryRepo := repositories.NewCategoryRepository(db)
 	
 	// Initialize services
 	productService := services.NewProductService(productRepo)
 	
 	// Initialize handlers
 	productHandler := handlers.NewProductHandler(productService)
-	categoryHandler := handlers.NewCategoryHandler(categoryStore)
+	categoryHandler := handlers.NewCategoryHandler(categoryRepo)
 	
 	// Setup routes
 	http.HandleFunc("/health", handlers.HealthCheckHandler)

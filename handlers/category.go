@@ -3,23 +3,27 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
-	"kasir-api/data"
 	"kasir-api/models"
+	"kasir-api/repositories"
 	"net/http"
 	"strconv"
 	"strings"
 )
 
 type CategoryHandler struct {
-	store *data.CategoryStore
+	repo *repositories.CategoryRepository
 }
 
-func NewCategoryHandler(store *data.CategoryStore) *CategoryHandler {
-	return &CategoryHandler{store: store}
+func NewCategoryHandler(repo *repositories.CategoryRepository) *CategoryHandler {
+	return &CategoryHandler{repo: repo}
 }
 
 func (h *CategoryHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
-	categories := h.store.GetAll()
+	categories, err := h.repo.GetAll()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(categories)
 }
@@ -31,7 +35,11 @@ func (h *CategoryHandler) CreateCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	
-	category := h.store.Create(newCategory)
+	category, err := h.repo.Create(newCategory)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(category)
@@ -44,7 +52,7 @@ func (h *CategoryHandler) GetCategoryByID(w http.ResponseWriter, r *http.Request
 		return
 	}
 	
-	category, err := h.store.GetByID(id)
+	category, err := h.repo.GetByID(id)
 	if err != nil {
 		http.Error(w, "Category not found", http.StatusNotFound)
 		return
@@ -67,7 +75,7 @@ func (h *CategoryHandler) UpdateCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	
-	category, err := h.store.Update(id, updatedCategory)
+	category, err := h.repo.Update(id, updatedCategory)
 	if err != nil {
 		http.Error(w, "Category not found", http.StatusNotFound)
 		return
@@ -85,7 +93,7 @@ func (h *CategoryHandler) DeleteCategory(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	
-	if err := h.store.Delete(id); err != nil {
+	if err := h.repo.Delete(id); err != nil {
 		http.Error(w, "Category not found", http.StatusNotFound)
 		return
 	}
