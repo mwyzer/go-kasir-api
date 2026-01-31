@@ -1,0 +1,12 @@
+{
+    "id": 1,
+    "name": "Product 1",
+    "price": 100,
+    "stock": 10,
+    "category_id": 1,
+    "category": {
+        "id": 1,
+        "name": "Category 1",
+        "description": "Description 1"
+    }
+}

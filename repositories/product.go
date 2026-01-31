@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"kasir-api/models"
+	"log"
 )
 
 type ProductRepository struct {
@@ -38,6 +39,9 @@ func (repo *ProductRepository) GetAll() ([]models.Product, error) {
 func (repo *ProductRepository) Create(product *models.Product) error {
 	query := "INSERT INTO products (nama, harga, stok, category_id) VALUES ($1, $2, $3, $4) RETURNING id"
 	err := repo.db.QueryRow(query, product.Name, product.Price, product.Stock, product.CategoryID).Scan(&product.ID)
+	if err != nil {
+		log.Printf("ERROR: Failed to create product: %v", err)
+	}
 	return err
 }
 
