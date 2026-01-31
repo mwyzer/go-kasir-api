@@ -56,53 +56,63 @@ func main() {
         dbConnection = config.DBConn
     }
     
-    // Check if we have a database connection string
-    if dbConnection == "" {
-        log.Fatal("ERROR: No database connection string found! Set DATABASE_URL or DB_CONN environment variable")
-    }
-    
-    log.Println("Database connection string found, attempting to connect...")
-    
-    db, err := database.InitDB(dbConnection)
-    if err != nil {
-        log.Printf("DATABASE CONNECTION FAILED: %v", err)
-        log.Fatal("Cannot start application without database connection")
-    }
-    defer db.Close()
-    
-    log.Println("✓ Database connected successfully")
-
-    // Initialize repositories
-    log.Println("Initializing repositories...")
-    productRepo := repositories.NewProductRepository(db)
-    categoryRepo := repositories.NewCategoryRepository(db)
-    
-    // Initialize services
-    log.Println("Initializing services...")
-    productService := services.NewProductService(productRepo)
-    
-    // Initialize handlers
-    log.Println("Initializing handlers...")
-    productHandler := handlers.NewProductHandler(productService)
-    categoryHandler := handlers.NewCategoryHandler(categoryRepo)
-    
-    // Setup routes
-    log.Println("Setting up routes...")
+    // Setup basic health check first (works without DB)
+    log.Println("Setting up health check endpoint...")
     http.HandleFunc("/health", handlers.HealthCheckHandler)
     
-    // Product routes
-    http.HandleFunc("/api/product", productHandler.HandleProducts)
-    http.HandleFunc("/api/product/", productHandler.HandleProductByID)
+    // Try to initialize database
+    var db *database.DB
+    var productRepo *repositories.ProductRepository
+    var categoryRepo *repositories.CategoryRepository
     
-    // Category routes
-    http.HandleFunc("/api/category", categoryHandler.HandleCategories)
-    http.HandleFunc("/api/category/", categoryHandler.HandleCategoryByID)
+    if dbConnection == "" {
+        log.Println("WARNING: No database connection string found!")
+        log.Println("Service will start but API endpoints will not work")
+        log.Println("Set DATABASE_URL environment variable in Zeabur")
+    } else {
+        log.Println("Database connection string found, attempting to connect...")
+        
+        var err error
+        db, err = database.InitDB(dbConnection)
+        if err != nil {
+            log.Printf("WARNING: Database connection failed: %v", err)
+            log.Println("Service will start but API endpoints will not work")
+        } else {
+            defer db.Close()
+            log.Println("✓ Database connected successfully")
+            
+            // Initialize repositories only if DB is connected
+            log.Println("Initializing repositories...")
+            productRepo = repositories.NewProductRepository(db)
+            categoryRepo = repositories.NewCategoryRepository(db)
+            
+            // Initialize services
+            log.Println("Initializing services...")
+            productService := services.NewProductService(productRepo)
+            
+            // Initialize handlers
+            log.Println("Initializing handlers...")
+            productHandler := handlers.NewProductHandler(productService)
+            categoryHandler := handlers.NewCategoryHandler(categoryRepo)
+            
+            // Setup API routes only if DB is connected
+            log.Println("Setting up API routes...")
+            http.HandleFunc("/api/product", productHandler.HandleProducts)
+            http.HandleFunc("/api/product/", productHandler.HandleProductByID)
+            http.HandleFunc("/api/category", categoryHandler.HandleCategories)
+            http.HandleFunc("/api/category/", categoryHandler.HandleCategoryByID)
+        }
+    }
     
-    // Start server
+    // Start server (this will always run)
     log.Printf("=== Server starting on port %s ===", config.Port)
     fmt.Printf("Server started at :%s\n", config.Port)
     fmt.Println("Health check available at: /health")
-    fmt.Println("API endpoints available at: /api/product, /api/category")
+    if db != nil {
+        fmt.Println("API endpoints available at: /api/product, /api/category")
+    } else {
+        fmt.Println("API endpoints NOT available - database not connected")
+    }
     
     if err := http.ListenAndServe(":"+config.Port, nil); err != nil {
         log.Printf("SERVER ERROR: %v", err)
