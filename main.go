@@ -21,11 +21,11 @@ type Config struct {
 
 func main() {
 
-	viper.SetConfigFile(".env")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Printf("Error reading config file: %s", err)
-	}
-	viper.AutomaticEnv()
+	// Try to read .env file if it exists, but don't fail if it doesn't  
+	viper.SetConfigFile(".env")  
+	viper.ReadInConfig() // Ignore error if file doesn't exist  
+	viper.AutomaticEnv()  
+
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 
 	//config port
