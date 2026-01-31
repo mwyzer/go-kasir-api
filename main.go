@@ -9,6 +9,7 @@ import (
 	"kasir-api/services"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -35,7 +36,11 @@ func main() {
 	}
 
 	//config database
-	db, err := database.InitDB(config.DBConn)
+	dbConnection := os.Getenv("DATABASE_URL")
+	if dbConnection == "" {
+		dbConnection = config.DBConn
+	}
+	db, err := database.InitDB(dbConnection)
 	if err != nil {
 		log.Fatal(err)
 	}
