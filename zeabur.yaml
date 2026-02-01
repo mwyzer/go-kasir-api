@@ -1,0 +1,7 @@
+services:
+  - name: kasir-api-app
+    runtime: go
+    build:
+      command: go build -o kasir-api .
+    start:
+      command: ./kasir-api
